@@ -2,6 +2,7 @@
 #define OL_EVAL_H
 
 #include <stack>
+#include <map>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
@@ -48,23 +49,30 @@ struct Turtle {
     void level();
 };
 
-constexpr uint32_t S_forward = 1;
-constexpr uint32_t S_skip    = 2;
-constexpr uint32_t S_yaw     = 3; // +-
-constexpr uint32_t S_pitch   = 4; // &
-constexpr uint32_t S_roll    = 5; // /
-constexpr uint32_t S_Dollar  = 6; // special turtle command
-constexpr uint32_t S_push    = 7;
-constexpr uint32_t S_pop     = 8;
-constexpr uint32_t S_Bang    = 9;
-constexpr uint32_t S_A       = 10; // other intermediate symbols should be above this value
+struct TurtleCommands {
+    enum CMD {
+        S_forward = 1,
+        S_skip    ,     
+        S_yaw     ,     // +-
+        S_pitch   ,     // &
+        S_roll    ,     // /
+        S_Dollar  ,     // special turtle command
+        S_push    ,     
+        S_pop     ,     
+        SetWidth    ,     
+        S_A             // other intermediate symbols should be above this value
+    };
+};
 
 class ProceduralTree {
 public:
+    std::vector<glm::mat4> joints;
+    std::vector<uint32_t> indices;
 
     static const char* Library[];
 
-    void apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l);
+    void set_parameter(const std::string& name, float value) {parameters[name] = value;}
+    float get_parameter(const std::string& name) const {return parameters.at(name);}
 
     /**
      * @brief converts a given symbol string to a 3d representation. Line primitives are places in index array
@@ -74,68 +82,25 @@ public:
      * @param indices 
      */
     template<typename T>
-    bool to_skeleton(const SymbolString<T>& ss, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+    bool str_to_skeleton(const SymbolString<T>& ss) {
         std::stack<Turtle> turtle_stack;
         Turtle turtle;
         for (const auto& symbol : ss) {
-            int depth = turtle_stack.size();
+            const uint32_t depth = turtle_stack.size();
             // operator determination, symbol to turtle command
-            switch(symbol.RepSym) {
-                case S_forward:
-                {
-                    glm::mat4 scaling = glm::scale(glm::mat4{1.0f}, {turtle.width, turtle.width, 1.0f});
-
-                    if (depth > 0)
-                        apply_tropism(turtle, GravityDir, 1.0f / (depth + 1.0f) * 4.22f, symbol.value);
-
-                    indices.push_back(joints.size());
-                    glm::mat4 tr = glm::mat4{turtle.rotation} * scaling;
-                    tr[3] = glm::vec4(turtle.position, 1.0f);
-                    joints.push_back(tr);
-
-                    turtle.forward(symbol.value);
-
-                    indices.push_back(joints.size());
-                    tr = glm::mat4{turtle.rotation} * scaling;
-                    tr[3] = glm::vec4(turtle.position, 1.0f);
-                    joints.push_back(tr);
-                    break;
-                }
-                case S_skip:
-                {
-                    turtle.forward(symbol.value);
-                    break;
-                }
-                case S_yaw:
-                    turtle.yaw(symbol.value);
-                    break;
-                case S_pitch:
-                    turtle.pitch(symbol.value);
-                    break;
-                case S_roll:
-                    turtle.roll(symbol.value);
-                    break;
-                case S_push:
-                    turtle_stack.push(turtle);
-                    break;
-                case S_pop:
-                    turtle = turtle_stack.top();
-                    turtle_stack.pop();
-                    break;
-                case S_Dollar:
-                    turtle.level();
-                    break;
-                case S_Bang:
-                    turtle.width = symbol.value;
-                    break;
-                default:
-                    break; // no op for undefined symbols
-            }
+            eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack);
         }
         return turtle_stack.size() == 0;
     }
+
+private:
+    std::map<std::string, float> parameters;
+
+    void apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l);
+    void eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack);
 };
+
 
 } // namespace ptree
 
-#endif
+#endif // OL_EVAL_H
