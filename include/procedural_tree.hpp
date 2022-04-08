@@ -20,7 +20,8 @@ struct Vertex {
     glm::vec4 color;
 };
 
-constexpr glm::vec3 GravityDir = {0, 0, -1};
+constexpr glm::vec3 GravityDir  = {0, -1, 0};
+constexpr glm::vec3 UpDir       = -GravityDir;
 
 using FSymbol = Symbol<float>;
 

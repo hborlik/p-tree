@@ -112,23 +112,47 @@ struct Pair {
 // constexpr const float w_r   = 0.707f;           /* width decrease rate */
 
 // example c
-constexpr const float R_1   = 0.9f;             /* contraction ratio for the trunk */
-constexpr const float R_2   = 0.7f;             /* contraction ratio for the branches */
-constexpr const float a_0   = degToRad(30);     /* branching angle from the trunk */
-constexpr const float a_2   = degToRad(-30);     /* branching angle for the lateral axes */
-constexpr const float d     = degToRad(137.5f); /* divergence angle */
-constexpr const float w_r   = 0.707f;           /* width decrease rate */
+// constexpr const float R_1   = 0.9f;             /* contraction ratio for the trunk */
+// constexpr const float R_2   = 0.7f;             /* contraction ratio for the branches */
+// constexpr const float a_0   = degToRad(30);     /* branching angle from the trunk */
+// constexpr const float a_2   = degToRad(-30);     /* branching angle for the lateral axes */
+// constexpr const float d     = degToRad(137.5f); /* divergence angle */
+// constexpr const float w_r   = 0.707f;           /* width decrease rate */
 
 constexpr Symbol<Pair> Axiom = {S_A, {1, 10}};
 
+struct MonopodialProduction : public Production<Pair> {
 
-struct P_1 : public Production<Pair> {
+    const float R_1   = 0.9f;             /* contraction ratio for the trunk */
+    const float R_2   = 0.7f;             /* contraction ratio for the branches */
+    const float a_0   = degToRad(30);     /* branching angle from the trunk */
+    const float a_2   = degToRad(-30);     /* branching angle for the lateral axes */
+    const float d     = degToRad(137.5f); /* divergence angle */
+    const float w_r   = 0.707f;           /* width decrease rate */
 
-    P_1() : Production<Pair>{1.0f, S_A} {}
+    MonopodialProduction() = default;
+
+    MonopodialProduction(float p, uint32_t sym) : Production<Pair>{p, sym} {}
+
+    MonopodialProduction(const std::map<std::string, float> &param, float p, uint32_t sym) : Production<Pair>{p, sym},
+        R_1{param.at("R_1")},
+        R_2{param.at("R_2")},
+        a_0{param.at("a_0")}, 
+        a_2{param.at("a_2")},
+        d{param.at("d")},
+        w_r{param.at("d_r")}
+    {
+    }
 
     bool matches(const SymbolN<Pair>& sym) const override {
         return sym.center()->RepSym == this->A;
     }
+};
+
+
+struct P_1 : public MonopodialProduction {
+
+    P_1() : MonopodialProduction{1.0f, S_A} {}
 
     SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
         const Pair& value = sym.center()->value;
@@ -150,12 +174,8 @@ struct P_1 : public Production<Pair> {
     }
 };
 
-struct P_2 : public Production<Pair> {
-    P_2() : Production<Pair>{1.0f, S_B} {}
-
-    bool matches(const SymbolN<Pair>& sym) const override {
-        return sym.center()->RepSym == this->A;
-    } 
+struct P_2 : public MonopodialProduction {
+    P_2() : MonopodialProduction{1.0f, S_B} {}
 
     SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
         const Pair& value = sym.center()->value;
@@ -177,12 +197,8 @@ struct P_2 : public Production<Pair> {
     }
 };
 
-struct P_3 : public Production<Pair> {
-    P_3() : Production<Pair>{1.0f, S_C} {}
-
-    bool matches(const SymbolN<Pair>& sym) const override {
-        return sym.center()->RepSym == this->A;
-    } 
+struct P_3 : public MonopodialProduction {
+    P_3() : MonopodialProduction{1.0f, S_C} {}
 
     SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
         const Pair& value = sym.center()->value;
@@ -323,13 +339,15 @@ const char* ProceduralTree::Library[] = {
     "f", 
     "+", 
     "&", 
-    "\\", 
+    "\\",
     "[", 
     "]", 
-    "A" 
+    "A",
+    "B",
+    "C"
 };
 
-Turtle::Turtle() : rotation{glm::identity<glm::quat>()}, position{} {
+Turtle::Turtle() : rotation{glm::quatLookAt(GravityDir, {1, 0, 0})}, position{} {
 
 }
 
