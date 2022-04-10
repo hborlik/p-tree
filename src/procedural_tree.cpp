@@ -246,6 +246,7 @@ void CreateSkeleton(int iterations, std::vector<glm::mat4>& joints, std::vector<
     ProceduralTree tree{};
 
     tree.str_to_skeleton(str);
+    // tree.simple_skeleton(10);
     joints = tree.joints;
     indices = tree.indices;
 }
@@ -265,6 +266,7 @@ void Skin(const std::vector<glm::mat4> &skeleton_joints, const std::vector<uint3
         const int l_v_pos = vertices.size(); // initial vertex buffer size
 
         glm::mat4 transform = glm::scale(glm::translate(bone_basis, {0, 0, bone_length / 2}), {0.01, 0.01, bone_length});
+        glm::mat3 normal_transform = glm::transpose(glm::inverse(glm::mat3(transform)));
 
         Vertex nv{};
         nv.color = glm::vec4(1.0, 1.0, 0.5, 1.0);
@@ -284,7 +286,7 @@ void Skin(const std::vector<glm::mat4> &skeleton_joints, const std::vector<uint3
         for (int v = 0; v < sizeof(v_pos) / sizeof(glm::vec3); ++v) {
             // nv.pos = sk_v_pos + v_pos[v];
             nv.pos = transform * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(skeleton_joints[i] * glm::vec4(v_pos[v], 0.f));
+            nv.normal = glm::normalize(normal_transform * v_pos[v]);
             vertices.push_back(nv);
         }
 
@@ -363,7 +365,13 @@ void Turtle::pitch(float rad) {
     rotation = glm::rotate(rotation, rad, {1, 0, 0});
 }
 
-void Turtle::forward(float distance) {
+void Turtle::forward(float distance, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+    push_edge(joints, indices);
+    position += heading() * distance;
+}
+
+void Turtle::skip(float distance) {
+    joint_index = -1;
     position += heading() * distance;
 }
 
@@ -381,6 +389,17 @@ void Turtle::level() {
     rotation = glm::mat3(l, u, h);
 }
 
+void Turtle::push_edge(std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+    if (joint_index != -1) {
+        // add previous joint
+        indices.push_back(joint_index);
+        indices.push_back(joints.size());
+    }
+    // add next joint
+    joint_index = joints.size();
+    joints.push_back(transform());
+}
+
 void ProceduralTree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
     const glm::vec3 hxt = glm::cross(turtle.heading(), T);
     const float alpha = F * hxt.length() * b_l * b_l / (2.0f * turtle.width);
@@ -391,30 +410,15 @@ void ProceduralTree::eval_turtle_step(uint32_t sym, float value, uint32_t depth,
     switch(sym) {
         case TurtleCommands::S_forward:
         {
-            glm::mat4 scaling = glm::scale(glm::mat4{1.0f}, {turtle.width, turtle.width, 1.0f});
-
             if (depth > 0) {
                 apply_tropism(turtle, GravityDir, 1.0f / (depth + 1.0f) * 4.22f, value);
             }
-
-            indices.push_back(joints.size());
-            glm::mat4 tr = glm::mat4{turtle.rotation} * scaling;
-            tr[3] = glm::vec4(turtle.position, 1.0f);
-            joints.push_back(tr);
-
-            turtle.forward(value);
-
-            indices.push_back(joints.size());
-            tr = glm::mat4{turtle.rotation} * scaling;
-            tr[3] = glm::vec4(turtle.position, 1.0f);
-            joints.push_back(tr);
+            turtle.forward(value, joints, indices);
             break;
         }
         case TurtleCommands::S_skip:
-        {
-            turtle.forward(value);
+            turtle.skip(value);
             break;
-        }
         case TurtleCommands::S_yaw:
             turtle.yaw(value);
             break;
@@ -426,8 +430,10 @@ void ProceduralTree::eval_turtle_step(uint32_t sym, float value, uint32_t depth,
             break;
         case TurtleCommands::S_push:
             turtle_stack.push(turtle);
+            turtle.reset_line();
             break;
         case TurtleCommands::S_pop:
+            turtle.push_edge(joints, indices);
             turtle = turtle_stack.top();
             turtle_stack.pop();
             break;
