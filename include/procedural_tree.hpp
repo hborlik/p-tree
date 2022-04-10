@@ -64,7 +64,7 @@ struct Turtle {
     void pitch(float rad);
 
     void forward(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
-    void skip(float distance);
+    void skip(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
 
     void level();
 

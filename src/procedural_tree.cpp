@@ -340,13 +340,11 @@ void Skin_GO(int faces, const std::vector<Joint> &skeleton_joints, const std::ve
         const float a_scale = joint_a.scale;
         const float b_scale = joint_b.scale;
 
-        const glm::vec3 avg_branch_dir = glm::normalize(bone_basis_a[2] + bone_basis_b[2]);
-
         const glm::vec3 a_normal = glm::normalize(glm::cross(glm::vec3{bone_basis_a[2]}, {1, 0, 0}));
-        const glm::vec3 b_normal = glm::normalize(glm::cross(glm::vec3{avg_branch_dir}, {1, 0, 0}));
+        const glm::vec3 b_normal = glm::normalize(glm::cross(glm::vec3{bone_basis_b[2]}, {1, 0, 0}));
 
         const glm::vec3 a_binormal = glm::normalize(glm::cross(glm::vec3{bone_basis_a[2]}, a_normal));
-        const glm::vec3 b_binormal = glm::normalize(glm::cross(glm::vec3{avg_branch_dir}, b_normal));
+        const glm::vec3 b_binormal = glm::normalize(glm::cross(glm::vec3{bone_basis_b[2]}, b_normal));
 
 
         const glm::mat4 transform_a = glm::mat4{
@@ -358,7 +356,7 @@ void Skin_GO(int faces, const std::vector<Joint> &skeleton_joints, const std::ve
         const glm::mat4 transform_b = glm::mat4{
             glm::vec4{b_normal, 0.0f},
             glm::vec4{b_binormal, 0.0f}, 
-            glm::vec4{avg_branch_dir, 0.0f},
+            glm::normalize(bone_basis_b[2]),
             glm::vec4{sk_vb_pos, 1}
         } * glm::scale(glm::mat4{1.0f}, {b_scale, b_scale, 1.0f});
         
@@ -427,8 +425,9 @@ void Turtle::forward(float distance, std::vector<Joint>& joints, std::vector<uin
     position += heading() * distance;
 }
 
-void Turtle::skip(float distance) {
-    joint_index = -1;
+void Turtle::skip(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
+    push_edge(joints, indices);
+    reset_line();
     position += heading() * distance;
 }
 
@@ -447,14 +446,18 @@ void Turtle::level() {
 }
 
 void Turtle::push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
+    Joint tr = joint_transform();
     if (joint_index != -1) {
         // add previous joint
         indices.push_back(joint_index);
         indices.push_back(joints.size());
+
+        // transform rotation is blend between last and current headings
+        tr.rotation = glm::slerp(joints[joint_index].rotation, tr.rotation, 0.5f);
     }
-    // add next joint
+    // add current position
     joint_index = joints.size();
-    joints.push_back(joint_transform());
+    joints.push_back(tr);
 }
 
 void ProceduralTree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
@@ -474,7 +477,7 @@ void ProceduralTree::eval_turtle_step(uint32_t sym, float value, uint32_t depth,
             break;
         }
         case TurtleCommands::S_skip:
-            turtle.skip(value);
+            turtle.skip(value, joints, indices);
             break;
         case TurtleCommands::S_yaw:
             turtle.yaw(value);
