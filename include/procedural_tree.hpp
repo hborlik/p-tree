@@ -23,10 +23,10 @@ struct Vertex {
 struct Joint {
     glm::quat rotation;
     glm::vec3 position;
-    glm::vec3 scale;
+    float scale;
 
     glm::mat4 transform() const noexcept {
-        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, scale);
+        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, {scale, scale, 1.0f});
         t[3] = glm::vec4{position, 1.0f};
         return t;
     }
@@ -41,6 +41,10 @@ void CreateSkeleton(int iterations, std::vector<Joint>& joints, std::vector<uint
 
 void Skin(int faces, const std::vector<Joint>& skeleton_joints, const std::vector<uint32_t>& skeleton_indices, 
         std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+
+// skin using global orientation vectors and ignore joint transforms
+void Skin_GO(int faces, const std::vector<Joint> &skeleton_joints, const std::vector<uint32_t> &skeleton_indices,
+          std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 struct Turtle {
     glm::quat rotation;
@@ -68,12 +72,8 @@ struct Turtle {
         return {
             rotation,
             position,
-            scaling()
+            width
         };
-    }
-
-    glm::vec3 scaling() const noexcept {
-        return {width, width, 1.0f};
     }
 
     void reset_line() {
