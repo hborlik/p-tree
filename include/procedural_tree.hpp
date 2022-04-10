@@ -20,14 +20,26 @@ struct Vertex {
     glm::vec4 color;
 };
 
+struct Joint {
+    glm::quat rotation;
+    glm::vec3 position;
+    glm::vec3 scale;
+
+    glm::mat4 transform() const noexcept {
+        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, scale);
+        t[3] = glm::vec4{position, 1.0f};
+        return t;
+    }
+};
+
 constexpr glm::vec3 GravityDir  = {0, -1, 0};
 constexpr glm::vec3 UpDir       = -GravityDir;
 
 using FSymbol = Symbol<float>;
 
-void CreateSkeleton(int iterations, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices);
+void CreateSkeleton(int iterations, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
 
-void Skin(const std::vector<glm::mat4>& skeleton_joints, const std::vector<uint32_t>& skeleton_indices, 
+void Skin(int faces, const std::vector<Joint>& skeleton_joints, const std::vector<uint32_t>& skeleton_indices, 
         std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 struct Turtle {
@@ -47,25 +59,21 @@ struct Turtle {
     void roll(float rad);
     void pitch(float rad);
 
-    void forward(float distance, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices);
+    void forward(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
     void skip(float distance);
 
     void level();
 
-    glm::mat4 transform() const {
-        glm::mat4 tr = glm::mat4{rotation} * scaling();
-        tr[3] = glm::vec4(position, 1.0f);
-        return tr;
+    Joint joint_transform() const noexcept {
+        return {
+            rotation,
+            position,
+            scaling()
+        };
     }
 
-    glm::mat4 linear_transform() const {
-        glm::mat4 tr = glm::mat4{rotation};
-        tr[3] = glm::vec4(position, 1.0f);
-        return tr;
-    }
-
-    glm::mat4 scaling() const noexcept {
-        return glm::scale(glm::mat4{1.0f}, {width, width, 1.0f});
+    glm::vec3 scaling() const noexcept {
+        return {width, width, 1.0f};
     }
 
     void reset_line() {
@@ -73,7 +81,7 @@ struct Turtle {
     }
 
     // push edge by adding the last and current position to the skeleton
-    void push_edge(std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices);
+    void push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices);
 };
 
 struct TurtleCommands {
@@ -93,7 +101,7 @@ struct TurtleCommands {
 
 class ProceduralTree {
 public:
-    std::vector<glm::mat4> joints;
+    std::vector<ptree::Joint> joints;
     std::vector<uint32_t> indices;
 
     static const char* Library[];

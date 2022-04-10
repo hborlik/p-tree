@@ -222,7 +222,7 @@ struct P_3 : public MonopodialProduction {
 
 }
 
-void CreateSkeleton(int iterations, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+void CreateSkeleton(int iterations, std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
     using namespace monopodial;
     LSystemTr<Pair> lsys{};
 
@@ -251,87 +251,63 @@ void CreateSkeleton(int iterations, std::vector<glm::mat4>& joints, std::vector<
     indices = tree.indices;
 }
 
-void Skin(const std::vector<glm::mat4> &skeleton_joints, const std::vector<uint32_t> &skeleton_indices,
+void Skin(int faces, const std::vector<Joint> &skeleton_joints, const std::vector<uint32_t> &skeleton_indices,
           std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
 {
+    std::vector<glm::vec3> v_pos;
+    glm::vec3 I = {0.5, 0, 0};
+    glm::mat3 rot = glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces, glm::vec3{0, 0, 1});
+    for(int i = 0; i < faces; i++) {
+        v_pos.push_back(I);
+        I = rot * I;
+    }
+
+    const uint32_t NVerts = v_pos.size();
     for (int i = 0; i < skeleton_indices.size(); i += 2) {
 
-        const uint32_t  vi_a = skeleton_indices[i], 
+        const uint32_t  vi_a = skeleton_indices[i],
                         vi_b = skeleton_indices[i + 1];
-        const glm::vec3 sk_va_pos = glm::vec3(skeleton_joints[vi_a][3]);
-        const glm::vec3 sk_vb_pos = glm::vec3(skeleton_joints[vi_b][3]);
-        const glm::mat4& bone_basis = skeleton_joints[vi_a];
+        const Joint& joint_a = skeleton_joints[vi_a];
+        const Joint& joint_b = skeleton_joints[vi_b];
+        const glm::vec3 sk_va_pos = glm::vec3(joint_a.position);
+        const glm::vec3 sk_vb_pos = glm::vec3(joint_b.position);
         const float bone_length = glm::length(sk_vb_pos - sk_va_pos);
 
-        const int l_v_pos = vertices.size(); // initial vertex buffer size
+        const int VertFirstInd = vertices.size(); // initial vertex buffer size
 
-        glm::mat4 transform = glm::scale(glm::translate(bone_basis, {0, 0, bone_length / 2}), {0.01, 0.01, bone_length});
-        glm::mat3 normal_transform = glm::transpose(glm::inverse(glm::mat3(transform)));
+        const glm::mat4 bone_basis_a = joint_a.transform();
+        const glm::mat4 bone_basis_b = joint_b.transform();
+
+        const glm::mat4 transform_a = bone_basis_a * glm::scale(glm::mat4{1.0f}, {0.02, 0.02, 1.0f});
+        const glm::mat4 transform_b = bone_basis_b * glm::scale(glm::mat4{1.0f}, {0.02, 0.02, 1.0f});
+        
+        const glm::mat3 normal_transform_a = glm::transpose(glm::inverse(glm::mat3(transform_a)));
+        const glm::mat3 normal_transform_b = glm::transpose(glm::inverse(glm::mat3(transform_b)));
 
         Vertex nv{};
         nv.color = glm::vec4(1.0, 1.0, 0.5, 1.0);
 
-        glm::vec3 v_pos[] = {
-            {0.5, 0.5, 0.5},
-            {0.5, -0.5, -0.5},
-            {0.5, -0.5, 0.5},
-            {0.5, 0.5, -0.5},
-
-            {-0.5, 0.5, 0.5},
-            {-0.5, -0.5, -0.5},
-            {-0.5, -0.5, 0.5},
-            {-0.5, 0.5, -0.5}
-        };
-
-        for (int v = 0; v < sizeof(v_pos) / sizeof(glm::vec3); ++v) {
-            // nv.pos = sk_v_pos + v_pos[v];
-            nv.pos = transform * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(normal_transform * v_pos[v]);
+        for (int v = 0; v < NVerts; ++v) {
+            // vertex set a
+            nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
+            nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
+            vertices.push_back(nv);
+            // vertex set b
+            nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
+            nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
             vertices.push_back(nv);
         }
 
+        for (int f = 0; f < NVerts; ++f) {
+            const int inds = 2 * f;
+            indices.push_back(VertFirstInd + inds);
+            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
+            indices.push_back(VertFirstInd + inds+1);
 
-        indices.push_back(0 + l_v_pos);
-        indices.push_back(2 + l_v_pos);
-        indices.push_back(1 + l_v_pos);
-        indices.push_back(0 + l_v_pos);
-        indices.push_back(1 + l_v_pos);
-        indices.push_back(3 + l_v_pos);
-
-        indices.push_back(4 + l_v_pos);
-        indices.push_back(5 + l_v_pos);
-        indices.push_back(6 + l_v_pos);
-        indices.push_back(4 + l_v_pos);
-        indices.push_back(7 + l_v_pos);
-        indices.push_back(5 + l_v_pos);
-
-        indices.push_back(4 + l_v_pos);
-        indices.push_back(0 + l_v_pos);
-        indices.push_back(3 + l_v_pos);
-        indices.push_back(4 + l_v_pos);
-        indices.push_back(3 + l_v_pos);
-        indices.push_back(7 + l_v_pos);
-
-        indices.push_back(6 + l_v_pos);
-        indices.push_back(2 + l_v_pos);
-        indices.push_back(0 + l_v_pos);
-        indices.push_back(6 + l_v_pos);
-        indices.push_back(0 + l_v_pos);
-        indices.push_back(4 + l_v_pos);
-
-        indices.push_back(3 + l_v_pos);
-        indices.push_back(1 + l_v_pos);
-        indices.push_back(5 + l_v_pos);
-        indices.push_back(3 + l_v_pos);
-        indices.push_back(5 + l_v_pos);
-        indices.push_back(7 + l_v_pos);
-
-        indices.push_back(5 + l_v_pos);
-        indices.push_back(2 + l_v_pos);
-        indices.push_back(6 + l_v_pos);
-        indices.push_back(5 + l_v_pos);
-        indices.push_back(1 + l_v_pos);
-        indices.push_back(2 + l_v_pos);
+            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
+            indices.push_back(VertFirstInd + (inds+3) % (NVerts * 2));
+            indices.push_back(VertFirstInd + inds+1);
+        }
     }
 }
 
@@ -365,7 +341,7 @@ void Turtle::pitch(float rad) {
     rotation = glm::rotate(rotation, rad, {1, 0, 0});
 }
 
-void Turtle::forward(float distance, std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+void Turtle::forward(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
     push_edge(joints, indices);
     position += heading() * distance;
 }
@@ -389,7 +365,7 @@ void Turtle::level() {
     rotation = glm::mat3(l, u, h);
 }
 
-void Turtle::push_edge(std::vector<glm::mat4>& joints, std::vector<uint32_t>& indices) {
+void Turtle::push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
     if (joint_index != -1) {
         // add previous joint
         indices.push_back(joint_index);
@@ -397,7 +373,7 @@ void Turtle::push_edge(std::vector<glm::mat4>& joints, std::vector<uint32_t>& in
     }
     // add next joint
     joint_index = joints.size();
-    joints.push_back(transform());
+    joints.push_back(joint_transform());
 }
 
 void ProceduralTree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
