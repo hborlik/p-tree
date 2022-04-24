@@ -41,7 +41,7 @@ T bezier(float s, const T& p0, const T& c0, const T& c1, const T& p1) noexcept {
 }
 
 template<typename T>
-T hermite(float s, const T& p0, const T& t0, const T& c1, const T& p1) noexcept {
+T hermite(float s, const T& p0, const T& t0, const T& t1, const T& p1) noexcept {
     float ss, d, a, b, c, e, f;
 
     ss = s  * s;

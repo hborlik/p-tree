@@ -3,6 +3,7 @@
 
 #include <stack>
 #include <map>
+#include <optional>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
@@ -32,19 +33,22 @@ struct Joint {
     }
 };
 
+struct Skeleton {
+    std::vector<ptree::Joint> joints;
+    std::vector<uint32_t> indices;
+};
+
 constexpr glm::vec3 GravityDir  = {0, -1, 0};
 constexpr glm::vec3 UpDir       = -GravityDir;
 
 using FSymbol = Symbol<float>;
 
-void CreateSkeleton(int iterations, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
+Skeleton CreateSkeleton(int iterations);
 
-void Skin(int faces, const std::vector<Joint>& skeleton_joints, const std::vector<uint32_t>& skeleton_indices, 
-        std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+void Skin(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 // skin using global orientation vectors and ignore joint transforms
-void Skin_GO(int faces, const std::vector<Joint> &skeleton_joints, const std::vector<uint32_t> &skeleton_indices,
-          std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+void Skin_GO(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 struct Turtle {
     glm::quat rotation;
@@ -84,6 +88,20 @@ struct Turtle {
     void push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices);
 };
 
+static const char* Library[] = {
+    "Nil",
+    "F",
+    "f", 
+    "+", 
+    "&", 
+    "\\",
+    "[", 
+    "]", 
+    "A",
+    "B",
+    "C"
+};
+
 struct TurtleCommands {
     enum CMD {
         S_forward = 1,
@@ -99,13 +117,8 @@ struct TurtleCommands {
     };
 };
 
-class TreeSkeleton {
+class Tree {
 public:
-    std::vector<ptree::Joint> joints;
-    std::vector<uint32_t> indices;
-
-    static const char* Library[];
-
     void set_parameter(const std::string& name, float value) {parameters[name] = value;}
     float get_parameter(const std::string& name) const {return parameters.at(name);}
 
@@ -117,33 +130,38 @@ public:
      * @param indices 
      */
     template<typename T>
-    bool str_to_skeleton(const SymbolString<T>& ss) {
+    std::optional<Skeleton> str_to_skeleton(const SymbolString<T>& ss) {
+        Skeleton sk;
         std::stack<Turtle> turtle_stack;
         Turtle turtle{};
 
         for (const auto& symbol : ss) {
             const uint32_t depth = turtle_stack.size();
             // operator determination, symbol to turtle command
-            eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack);
+            eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack, sk);
         }
-        return turtle_stack.size() == 0;
+        if (turtle_stack.size() == 0)
+            return {sk};
+        return {};
     }
 
-    void simple_skeleton(int len) {
+    Skeleton simple_skeleton(int len) {
+        Skeleton skeleton;
         Turtle turtle{};
         turtle.width = 2.0f;
         for (int i = 0; i < len; i++) {
             // apply_tropism(turtle, GravityDir, 4.22f, 1.0f);
-            turtle.forward(0.5f, joints, indices);
+            turtle.forward(0.5f, skeleton.joints, skeleton.indices);
             turtle.yaw(0.2f);
         }
+        return skeleton;
     }
 
 private:
     std::map<std::string, float> parameters;
 
     void apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l);
-    void eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack);
+    void eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack, Skeleton& sk);
 };
 
 
