@@ -11,6 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <ol_system.hpp>
+#include <spline.hpp>
 
 namespace ptree {
 
@@ -24,10 +25,10 @@ struct Vertex {
 struct Joint {
     glm::quat rotation;
     glm::vec3 position;
-    float scale;
+    float width_scale;
 
     glm::mat4 transform() const noexcept {
-        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, {scale, scale, 1.0f});
+        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, {width_scale, width_scale, 1.0f});
         t[3] = glm::vec4{position, 1.0f};
         return t;
     }
@@ -38,17 +39,20 @@ struct Skeleton {
     std::vector<uint32_t> indices;
 };
 
+/**
+ * @brief skeleton made of spline sections
+ * 
+ */
+struct SplineSkeleton {
+    std::vector<HermiteSpline<glm::vec3>> sections;
+};
+
 constexpr glm::vec3 GravityDir  = {0, -1, 0};
 constexpr glm::vec3 UpDir       = -GravityDir;
 
 using FSymbol = Symbol<float>;
 
 Skeleton CreateSkeleton(int iterations);
-
-void Skin(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-
-// skin using global orientation vectors and ignore joint transforms
-void Skin_GO(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 
 struct Turtle {
     glm::quat rotation;
@@ -121,6 +125,8 @@ class Tree {
 public:
     void set_parameter(const std::string& name, float value) {parameters[name] = value;}
     float get_parameter(const std::string& name) const {return parameters.at(name);}
+
+    void generate();
 
     /**
      * @brief converts a given symbol string to a 3d representation. Line primitives are places in index array
