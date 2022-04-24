@@ -99,7 +99,7 @@ struct TurtleCommands {
     };
 };
 
-class ProceduralTree {
+class TreeSkeleton {
 public:
     std::vector<ptree::Joint> joints;
     std::vector<uint32_t> indices;

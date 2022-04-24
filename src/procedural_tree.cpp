@@ -1,4 +1,5 @@
 #include <procedural_tree.hpp>
+#include <spline.hpp>
 
 #include <math.h>
 
@@ -236,14 +237,14 @@ void CreateSkeleton(int iterations, std::vector<Joint>& joints, std::vector<uint
 
     SymbolString<Pair> str{Axiom};
 
-    // PrintSymbolString<float>(ProceduralTree::Library, str);
+    // PrintSymbolString<float>(TreeSkeleton::Library, str);
 
     for (int i = 0; i < iterations; ++i) {
         str = lsys.evaluate(str);
-        // PrintSymbolString<float>(ProceduralTree::Library, str);
+        // PrintSymbolString<float>(TreeSkeleton::Library, str);
     }
 
-    ProceduralTree tree{};
+    TreeSkeleton tree{};
 
     tree.str_to_skeleton(str);
     // tree.simple_skeleton(10);
@@ -390,7 +391,7 @@ void Skin_GO(int faces, const std::vector<Joint> &skeleton_joints, const std::ve
     }
 }
 
-const char* ProceduralTree::Library[] = {
+const char* TreeSkeleton::Library[] = {
     "Nil",
     "F",
     "f", 
@@ -460,13 +461,13 @@ void Turtle::push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indice
     joints.push_back(tr);
 }
 
-void ProceduralTree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
+void TreeSkeleton::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
     const glm::vec3 hxt = glm::cross(turtle.heading(), T);
     const float alpha = F * hxt.length() * b_l * b_l / (2.0f * turtle.width);
     turtle.rotation = glm::rotate(glm::quat{glm::mat4{1.0f}}, alpha, hxt) * turtle.rotation;
 }
 
-void ProceduralTree::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack) {
+void TreeSkeleton::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack) {
     switch(sym) {
         case TurtleCommands::S_forward:
         {
