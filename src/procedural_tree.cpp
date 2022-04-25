@@ -81,13 +81,6 @@ struct P_2 : public Production<T> {
  */
 namespace monopodial {
 
-
-struct Pair {
-    float l = 0,w = 0;
-
-    operator float() const noexcept {return l;}
-};
-
 // example a
 // constexpr const float R_1   = 0.9f;             /* contraction ratio for the trunk */
 // constexpr const float R_2   = 0.6f;             /* contraction ratio for the branches */
@@ -120,9 +113,9 @@ struct Pair {
 // constexpr const float d     = degToRad(137.5f); /* divergence angle */
 // constexpr const float w_r   = 0.707f;           /* width decrease rate */
 
-constexpr Symbol<Pair> Axiom = {S_A, {2, 0.5}};
+constexpr Symbol<TreeSymbol> Axiom = {S_A, {2, 0.5}};
 
-struct MonopodialProduction : public Production<Pair> {
+struct MonopodialProduction : public Production<TreeSymbol> {
 
     const float R_1   = 0.9f;             /* contraction ratio for the trunk */
     const float R_2   = 0.7f;             /* contraction ratio for the branches */
@@ -133,9 +126,9 @@ struct MonopodialProduction : public Production<Pair> {
 
     MonopodialProduction() = default;
 
-    MonopodialProduction(float p, uint32_t sym) : Production<Pair>{p, sym} {}
+    MonopodialProduction(float p, uint32_t sym) : Production<TreeSymbol>{p, sym} {}
 
-    MonopodialProduction(const std::map<std::string, float> &param, float p, uint32_t sym) : Production<Pair>{p, sym},
+    MonopodialProduction(const std::map<std::string, float> &param, float p, uint32_t sym) : Production<TreeSymbol>{p, sym},
         R_1{param.at("R_1")},
         R_2{param.at("R_2")},
         a_0{param.at("a_0")}, 
@@ -145,7 +138,7 @@ struct MonopodialProduction : public Production<Pair> {
     {
     }
 
-    bool matches(const SymbolN<Pair>& sym) const override {
+    bool matches(const SymbolN<TreeSymbol>& sym) const override {
         return sym.center()->RepSym == this->A;
     }
 };
@@ -155,11 +148,11 @@ struct P_1 : public MonopodialProduction {
 
     P_1() : MonopodialProduction{1.0f, S_A} {}
 
-    SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
-        const Pair& value = sym.center()->value;
+    SymbolString<TreeSymbol> translate(const SymbolN<TreeSymbol>& sym) const override {
+        const TreeSymbol& value = sym.center()->value;
         float L = value.l;
         float W = value.w;
-        SymbolString<Pair> ret{};
+        SymbolString<TreeSymbol> ret{};
         if (matches(sym)) {
             // !(w) F(l) [ &(a0) B(l * R_2, w * w_r) ] /(d) A(l * R_1, w * w_r)
             ret.push_back({TurtleCommands::SetWidth, {W}});
@@ -178,11 +171,11 @@ struct P_1 : public MonopodialProduction {
 struct P_2 : public MonopodialProduction {
     P_2() : MonopodialProduction{1.0f, S_B} {}
 
-    SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
-        const Pair& value = sym.center()->value;
+    SymbolString<TreeSymbol> translate(const SymbolN<TreeSymbol>& sym) const override {
+        const TreeSymbol& value = sym.center()->value;
         float L = value.l;
         float W = value.w;
-        SymbolString<Pair> ret{};
+        SymbolString<TreeSymbol> ret{};
         if (matches(sym)) {
             // !(w) F(L) [ -(a_2) $ C(l * R_2, w * w_r) ] C(l * R_1, w * w_r)
             ret.push_back({TurtleCommands::SetWidth, {W}});
@@ -201,11 +194,11 @@ struct P_2 : public MonopodialProduction {
 struct P_3 : public MonopodialProduction {
     P_3() : MonopodialProduction{1.0f, S_C} {}
 
-    SymbolString<Pair> translate(const SymbolN<Pair>& sym) const override {
-        const Pair& value = sym.center()->value;
+    SymbolString<TreeSymbol> translate(const SymbolN<TreeSymbol>& sym) const override {
+        const TreeSymbol& value = sym.center()->value;
         float L = value.l;
         float W = value.w;
-        SymbolString<Pair> ret{};
+        SymbolString<TreeSymbol> ret{};
         if (matches(sym)) {
             // !(w) F(L) [ +(a_2) $ B(l * R_2, w * w_r) ] B(l * R_1, w * w_r)
             ret.push_back({TurtleCommands::SetWidth, {W}});
@@ -225,7 +218,7 @@ struct P_3 : public MonopodialProduction {
 
 Skeleton CreateSkeleton(int iterations) {
     using namespace monopodial;
-    LSystemTr<Pair> lsys{};
+    LSystemTr<TreeSymbol> lsys{};
 
     P_1 p1{};
     P_2 p2{};
@@ -235,7 +228,7 @@ Skeleton CreateSkeleton(int iterations) {
     lsys.add_rule(&p2);
     lsys.add_rule(&p3);
 
-    SymbolString<Pair> str{Axiom};
+    SymbolString<TreeSymbol> str{Axiom};
 
     // PrintSymbolString<float>(Tree::Library, str);
 
@@ -244,157 +237,24 @@ Skeleton CreateSkeleton(int iterations) {
         // PrintSymbolString<float>(Tree::Library, str);
     }
 
-    Tree tree{};
+    SplineSkeleton ssk;
+    HermiteSpline<Transform> spline{};
+    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{0, 0.8, 0.05}), {0, 1, 0}), {3, 5, 3}});
+    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {2, 2, 2}});
+    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1.2, 1.2, 1.2}});
+    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1, 1, 1}});
+    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {}});
+    ssk.sections.push_back(spline);
 
-    auto sk = tree.str_to_skeleton(str);
-    if (sk) {
-        // tree.simple_skeleton(10);
-        return *sk;
-    }
-    return {};
-}
+    return ssk.toSkeleton(50);
 
-void Skin(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
-{
-    const std::vector<Joint> &skeleton_joints = skeleton.joints;
-    const std::vector<uint32_t> &skeleton_indices = skeleton.indices;
-
-    std::vector<glm::vec3> v_pos;
-    glm::vec3 I = {0.5, 0, 0};
-    glm::mat3 rot = glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces, glm::vec3{0, 0, 1});
-    for(int i = 0; i < faces; i++) {
-        v_pos.push_back(I);
-        I = rot * I;
-    }
-
-    const uint32_t NVerts = v_pos.size();
-    for (int i = 0; i < skeleton_indices.size(); i += 2) {
-
-        const uint32_t  vi_a = skeleton_indices[i],
-                        vi_b = skeleton_indices[i + 1];
-        const Joint& joint_a = skeleton_joints[vi_a];
-        const Joint& joint_b = skeleton_joints[vi_b];
-        const glm::vec3 sk_va_pos = glm::vec3(joint_a.position);
-        const glm::vec3 sk_vb_pos = glm::vec3(joint_b.position);
-        const float bone_length = glm::length(sk_vb_pos - sk_va_pos);
-
-        const int VertFirstInd = vertices.size(); // initial vertex buffer size
-
-        const glm::mat4 bone_basis_a = joint_a.transform();
-        const glm::mat4 bone_basis_b = joint_b.transform();
-
-        const glm::mat4 transform_a = bone_basis_a;
-        const glm::mat4 transform_b = bone_basis_b;
-        
-        const glm::mat3 normal_transform_a = glm::transpose(glm::inverse(glm::mat3(transform_a)));
-        const glm::mat3 normal_transform_b = glm::transpose(glm::inverse(glm::mat3(transform_b)));
-
-        Vertex nv{};
-        nv.color = glm::vec4(1.0, 1.0, 0.5, 1.0);
-
-        for (int v = 0; v < NVerts; ++v) {
-            // vertex set a
-            nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
-            vertices.push_back(nv);
-            // vertex set b
-            nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
-            vertices.push_back(nv);
-        }
-
-        for (int f = 0; f < NVerts; ++f) {
-            const int inds = 2 * f;
-            indices.push_back(VertFirstInd + inds);
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
-
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + (inds+3) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
-        }
-    }
-}
-
-void Skin_GO(int faces, Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
-{
-    const std::vector<Joint> &skeleton_joints = skeleton.joints;
-    const std::vector<uint32_t> &skeleton_indices = skeleton.indices;
-
-    std::vector<glm::vec3> v_pos;
-    glm::vec3 I = {0.5, 0, 0};
-    glm::mat3 rot = glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces, glm::vec3{0, 0, 1});
-    for(int i = 0; i < faces; i++) {
-        v_pos.push_back(I);
-        I = rot * I;
-    }
-
-    const uint32_t NVerts = v_pos.size();
-    for (int i = 0; i < skeleton_indices.size(); i += 2) {
-
-        const uint32_t  vi_a = skeleton_indices[i],
-                        vi_b = skeleton_indices[i + 1];
-        const Joint& joint_a = skeleton_joints[vi_a];
-        const Joint& joint_b = skeleton_joints[vi_b];
-        const glm::vec3 sk_va_pos = glm::vec3(joint_a.position);
-        const glm::vec3 sk_vb_pos = glm::vec3(joint_b.position);
-
-        const int VertFirstInd = vertices.size(); // initial vertex buffer size
-
-        const glm::mat4 bone_basis_a = joint_a.transform();
-        const glm::mat4 bone_basis_b = joint_b.transform();
-
-        const float a_scale = joint_a.scale;
-        const float b_scale = joint_b.scale;
-
-        const glm::vec3 a_normal = glm::normalize(glm::cross(glm::vec3{bone_basis_a[2]}, {1, 0, 0}));
-        const glm::vec3 b_normal = glm::normalize(glm::cross(glm::vec3{bone_basis_b[2]}, {1, 0, 0}));
-
-        const glm::vec3 a_binormal = glm::normalize(glm::cross(glm::vec3{bone_basis_a[2]}, a_normal));
-        const glm::vec3 b_binormal = glm::normalize(glm::cross(glm::vec3{bone_basis_b[2]}, b_normal));
-
-
-        const glm::mat4 transform_a = glm::mat4{
-            glm::vec4{a_normal, 0.0f},
-            glm::vec4{a_binormal, 0.0f}, 
-            glm::normalize(bone_basis_a[2]), 
-            glm::vec4{sk_va_pos, 1}
-        } * glm::scale(glm::mat4{1.0f}, {a_scale, a_scale, 1.0f});
-        const glm::mat4 transform_b = glm::mat4{
-            glm::vec4{b_normal, 0.0f},
-            glm::vec4{b_binormal, 0.0f}, 
-            glm::normalize(bone_basis_b[2]),
-            glm::vec4{sk_vb_pos, 1}
-        } * glm::scale(glm::mat4{1.0f}, {b_scale, b_scale, 1.0f});
-        
-        const glm::mat3 normal_transform_a = glm::transpose(glm::inverse(glm::mat3(transform_a)));
-        const glm::mat3 normal_transform_b = glm::transpose(glm::inverse(glm::mat3(transform_b)));
-
-        Vertex nv{};
-        nv.color = glm::vec4(1.0, 1.0, 0.5, 1.0);
-
-        for (int v = 0; v < NVerts; ++v) {
-            // vertex set a
-            nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
-            vertices.push_back(nv);
-            // vertex set b
-            nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
-            nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
-            vertices.push_back(nv);
-        }
-
-        for (int f = 0; f < NVerts; ++f) {
-            const int inds = 2 * f;
-            indices.push_back(VertFirstInd + inds);
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
-
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + (inds+3) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
-        }
-    }
+    // Tree tree{};
+    // auto sk = tree.str_to_skeleton(str);
+    // if (sk) {
+    //     // tree.simple_skeleton(10);
+    //     return *sk;
+    // }
+    // return {};
 }
 
 Turtle::Turtle() : rotation{glm::quatLookAt(GravityDir, {1, 0, 0})}, position{} {
@@ -439,18 +299,18 @@ void Turtle::level() {
 }
 
 void Turtle::push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
-    Joint tr = joint_transform();
+    Joint joint = joint_transform();
     if (joint_index != -1) {
         // add previous joint
         indices.push_back(joint_index);
         indices.push_back(joints.size());
 
         // transform rotation is blend between last and current headings
-        tr.rotation = glm::slerp(joints[joint_index].rotation, tr.rotation, 0.5f);
+        joint.tr.rotation = glm::slerp(joints[joint_index].tr.rotation, joint.tr.rotation, 0.5f);
     }
     // add current position
     joint_index = joints.size();
-    joints.push_back(tr);
+    joints.push_back(joint);
 }
 
 void Tree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {

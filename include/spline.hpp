@@ -70,11 +70,21 @@ template<typename T>
 T cubic_hermite (const T& A, const T& B, const T& C, const T& D, float t)
 {
     T a = 0.5f * (-A + 3.0f*B - 3.0f*C + D);
-    T b = A - (5.0f*B)/2.0f + 2.0f*C - D / 2.0f;
+    T b = A - 0.5f * (5.0f*B) + 2.0f*C - 0.5f * D;
     T c = 0.5f * (-A + C);
     T d = B;
  
     return a*t*t*t + b*t*t + c*t + d;
+}
+
+template<typename T>
+T cubic_hermite_dt (const T& A, const T& B, const T& C, const T& D, float t)
+{
+    T a = 0.5f * (-A + 3.0f*B - 3.0f*C + D);
+    T b = A - (5.0f*B)/2.0f + 2.0f*C - D / 2.0f;
+    T c = 0.5f * (-A + C);
+ 
+    return 3.0f * a*t*t + 2.0f * b*t + c;
 }
 
 template<typename T>
@@ -86,11 +96,24 @@ struct HermiteSpline {
         const int index = x;
         
         return cubic_hermite<T>(
+            points[glm::clamp<int>(index - 1, 0, points.size() - 1)],
+            points[glm::clamp<int>(index    , 0, points.size() - 1)],
+            points[glm::clamp<int>(index + 1, 0, points.size() - 1)],
+            points[glm::clamp<int>(index + 2, 0, points.size() - 1)],
+            x - floor(x)
+        );
+    }
+
+    T eval_dt(float t) const noexcept {
+        const float x = (points.size() - 1) * t;
+        const int index = x;
+        
+        return cubic_hermite_dt<T>(
             points[glm::clamp(index - 1, 0, points.size() - 1)],
             points[glm::clamp(index    , 0, points.size() - 1)],
             points[glm::clamp(index + 1, 0, points.size() - 1)],
-            points[glm::clamp(index - 2, 0, points.size() - 1)],
-            x
+            points[glm::clamp(index + 2, 0, points.size() - 1)],
+            x - floor(x)
         );
     }
 };

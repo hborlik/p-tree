@@ -15,6 +15,12 @@
 
 namespace ptree {
 
+struct TreeSymbol {
+    float l = 0,w = 0;
+
+    operator float() const noexcept {return l;}
+};
+
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 normal;
@@ -22,14 +28,46 @@ struct Vertex {
     glm::vec4 color;
 };
 
-struct Joint {
+struct Transform {
     glm::quat rotation;
     glm::vec3 position;
-    float width_scale;
+
+    Transform(const glm::quat& rotation, const glm::vec3& position) : rotation{rotation}, position{position} {}
 
     glm::mat4 transform() const noexcept {
-        auto t = glm::mat4{rotation} * glm::scale(glm::mat4{1.0f}, {width_scale, width_scale, 1.0f});
+        glm::mat4 t = glm::mat4{rotation};
         t[3] = glm::vec4{position, 1.0f};
+        return t;
+    }
+
+private:
+    friend Transform operator*(float scalar, const Transform& t) noexcept {
+        return t * scalar;
+    }
+
+    friend Transform operator*(const Transform& t, float scalar) noexcept {
+        return Transform{t.rotation * scalar, t.position * scalar};
+    }
+
+    friend Transform operator-(const Transform& t) noexcept {
+        return t * -1.0f;
+    }
+    friend Transform operator+(const Transform& ta, const Transform& tb) noexcept {
+        return Transform{ta.rotation + tb.rotation, ta.position + tb.position};
+    }
+    friend Transform operator-(const Transform& ta, const Transform& tb) noexcept {
+        return ta + -tb;
+    }
+};
+
+struct Joint {
+    Transform tr;
+    float width_scale;
+
+    Joint(const Transform& tr, float width_scale) : tr{tr}, width_scale{width_scale} {}
+
+    glm::mat4 transform() const noexcept {
+        auto t = tr.transform() * glm::scale(glm::mat4{1.0f}, {width_scale, width_scale, 1.0f});
         return t;
     }
 };
@@ -44,7 +82,25 @@ struct Skeleton {
  * 
  */
 struct SplineSkeleton {
-    std::vector<HermiteSpline<glm::vec3>> sections;
+    std::vector<HermiteSpline<Transform>> sections;
+
+    Skeleton toSkeleton(int curve_samples) const {
+        Skeleton interm_skel;
+        for (const auto& section : sections) {
+            int last_joint_ind = -1;
+            // sample spline on section and add joints for it
+            for (int i = 0; i < curve_samples; ++i) {
+                const float x = float(i) / (curve_samples - 1);
+                if (last_joint_ind != -1) {
+                    interm_skel.indices.push_back(last_joint_ind);
+                    interm_skel.indices.push_back(interm_skel.joints.size());
+                }
+                last_joint_ind = interm_skel.joints.size();
+                interm_skel.joints.emplace_back<Joint>({section.eval(x), 1.0f});
+            }
+        }
+        return interm_skel;
+    }
 };
 
 constexpr glm::vec3 GravityDir  = {0, -1, 0};
@@ -78,8 +134,9 @@ struct Turtle {
 
     Joint joint_transform() const noexcept {
         return {
-            rotation,
-            position,
+            Transform{
+                rotation,
+                position},
             width
         };
     }
@@ -121,12 +178,20 @@ struct TurtleCommands {
     };
 };
 
+
+struct Branch {
+    std::vector<glm::vec3> vertices;
+    std::vector<Branch> children;
+    Branch *parent = nullptr;
+
+};
+
 class Tree {
 public:
+    Branch root;
+
     void set_parameter(const std::string& name, float value) {parameters[name] = value;}
     float get_parameter(const std::string& name) const {return parameters.at(name);}
-
-    void generate();
 
     /**
      * @brief converts a given symbol string to a 3d representation. Line primitives are places in index array
@@ -136,7 +201,7 @@ public:
      * @param indices 
      */
     template<typename T>
-    std::optional<Skeleton> str_to_skeleton(const SymbolString<T>& ss) {
+    std::optional<Skeleton> from_symbol_string(const SymbolString<T>& ss) {
         Skeleton sk;
         std::stack<Turtle> turtle_stack;
         Turtle turtle{};
