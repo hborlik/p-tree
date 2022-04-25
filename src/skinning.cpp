@@ -22,10 +22,8 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
 
     std::vector<glm::vec3> v_pos;
     glm::vec3 I = {0.5, 0, 0};
-    glm::mat3 rot = glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces, glm::vec3{0, 0, 1});
     for(int i = 0; i < faces; i++) {
-        v_pos.push_back(I);
-        I = rot * I;
+        v_pos.push_back(glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces * i, glm::vec3{0, 0, 1}) * glm::vec4(I, .0f));
     }
 
     const uint32_t NVerts = v_pos.size();
