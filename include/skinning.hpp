@@ -11,8 +11,6 @@
 
 namespace ptree {
 
-void Skin(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
-
 // skin using global orientation vectors and ignore joint transforms
 void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
 

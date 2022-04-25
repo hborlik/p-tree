@@ -218,43 +218,39 @@ struct P_3 : public MonopodialProduction {
 
 Skeleton CreateSkeleton(int iterations) {
     using namespace monopodial;
-    LSystemTr<TreeSymbol> lsys{};
+    LSystemTr<TreeSymbol> mlsys{};
 
     P_1 p1{};
     P_2 p2{};
     P_3 p3{};
 
-    lsys.add_rule(&p1);
-    lsys.add_rule(&p2);
-    lsys.add_rule(&p3);
+    mlsys.add_rule(&p1);
+    mlsys.add_rule(&p2);
+    mlsys.add_rule(&p3);
 
     SymbolString<TreeSymbol> str{Axiom};
 
-    // PrintSymbolString<float>(Tree::Library, str);
-
     for (int i = 0; i < iterations; ++i) {
-        str = lsys.evaluate(str);
-        // PrintSymbolString<float>(Tree::Library, str);
+        str = mlsys.evaluate(str);
     }
 
     SplineSkeleton ssk;
     HermiteSpline<Transform> spline{};
-    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{0, 0.8, 0.05}), {0, 1, 0}), {3, 5, 3}});
-    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {2, 2, 2}});
-    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1.2, 1.2, 1.2}});
-    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1, 1, 1}});
-    spline.points.push_back(Transform{glm::quatLookAt(glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {}});
+    spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {}});
+    spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1, 1, 1}});
+    spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {1.2, 1.2, 1.2}});
+    spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{1, 1, 1}), {0, 1, 0}), {2, 2, 2}});
+    spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{0, 0.8, 0.05}), {0, 1, 0}), {3, 5, 3}});
     ssk.sections.push_back(spline);
 
-    return ssk.toSkeleton(50);
+    // return ssk.toSkeleton(50);
 
-    // Tree tree{};
-    // auto sk = tree.str_to_skeleton(str);
-    // if (sk) {
-    //     // tree.simple_skeleton(10);
-    //     return *sk;
-    // }
-    // return {};
+    Tree tree{};
+    if (tree.from_symbol_string(str)) {
+        // tree.simple_skeleton(5);
+        return tree.to_skeleton();
+    }
+    return {};
 }
 
 Turtle::Turtle() : rotation{glm::quatLookAt(GravityDir, {1, 0, 0})}, position{} {
@@ -273,14 +269,14 @@ void Turtle::pitch(float rad) {
     rotation = glm::rotate(rotation, rad, {1, 0, 0});
 }
 
-void Turtle::forward(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
-    push_edge(joints, indices);
+void Turtle::forward(float distance) {
+    push_vertex();
     position += heading() * distance;
 }
 
-void Turtle::skip(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
-    push_edge(joints, indices);
-    reset_line();
+void Turtle::skip(float distance) {
+    push_vertex();
+    branch();
     position += heading() * distance;
 }
 
@@ -298,19 +294,12 @@ void Turtle::level() {
     rotation = glm::mat3(l, u, h);
 }
 
-void Turtle::push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices) {
+void Turtle::push_vertex() {
     Joint joint = joint_transform();
-    if (joint_index != -1) {
-        // add previous joint
-        indices.push_back(joint_index);
-        indices.push_back(joints.size());
-
-        // transform rotation is blend between last and current headings
-        joint.tr.rotation = glm::slerp(joints[joint_index].tr.rotation, joint.tr.rotation, 0.5f);
+    if (current_branch != nullptr) {        
+        current_branch->joints.push_back(joint);
     }
-    // add current position
-    joint_index = joints.size();
-    joints.push_back(joint);
+
 }
 
 void Tree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
@@ -319,18 +308,18 @@ void Tree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l)
     turtle.rotation = glm::rotate(glm::quat{glm::mat4{1.0f}}, alpha, hxt) * turtle.rotation;
 }
 
-void Tree::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack, Skeleton& sk) {
+void Tree::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack) {
     switch(sym) {
         case TurtleCommands::S_forward:
         {
             if (depth > 0) {
                 apply_tropism(turtle, GravityDir, 1.0f / (depth + 1.0f) * 0.02f, value);
             }
-            turtle.forward(value, sk.joints, sk.indices);
+            turtle.forward(value);
             break;
         }
         case TurtleCommands::S_skip:
-            turtle.skip(value, sk.joints, sk.indices);
+            turtle.skip(value);
             break;
         case TurtleCommands::S_yaw:
             turtle.yaw(value);
@@ -343,10 +332,10 @@ void Tree::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& t
             break;
         case TurtleCommands::S_push:
             turtle_stack.push(turtle);
-            turtle.reset_line();
+            turtle.branch();
             break;
         case TurtleCommands::S_pop:
-            turtle.push_edge(sk.joints, sk.indices);
+            turtle.push_vertex();
             turtle = turtle_stack.top();
             turtle_stack.pop();
             break;

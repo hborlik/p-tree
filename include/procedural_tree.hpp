@@ -61,19 +61,34 @@ private:
 };
 
 struct Joint {
-    Transform tr;
+    glm::vec3 tangent;
+    glm::vec3 position;
     float width_scale;
 
-    Joint(const Transform& tr, float width_scale) : tr{tr}, width_scale{width_scale} {}
+    Joint(const glm::vec3& tangent, const glm::vec3& position, float width_scale) : tangent{tangent}, position{position}, width_scale{width_scale} {}
+};
 
-    glm::mat4 transform() const noexcept {
-        auto t = tr.transform() * glm::scale(glm::mat4{1.0f}, {width_scale, width_scale, 1.0f});
-        return t;
+struct Branch {
+    std::vector<Joint> joints;
+    std::vector<Branch> children;
+    Branch *parent = nullptr;
+
+    /**
+     * @brief The last joint added to vertices
+     * 
+     * @return const Joint& 
+     */
+    const Joint& current_joint() const {
+        return joints[joints.size() - 1];
+    }
+
+    void add_joint(Joint joint) {
+        
     }
 };
 
 struct Skeleton {
-    std::vector<ptree::Joint> joints;
+    std::vector<Joint> joints;
     std::vector<uint32_t> indices;
 };
 
@@ -96,7 +111,7 @@ struct SplineSkeleton {
                     interm_skel.indices.push_back(interm_skel.joints.size());
                 }
                 last_joint_ind = interm_skel.joints.size();
-                interm_skel.joints.emplace_back<Joint>({section.eval(x), 1.0f});
+                interm_skel.joints.emplace_back<Joint>({section.eval_dt(x).position, section.eval(x).position, 1.0f});
             }
         }
         return interm_skel;
@@ -115,7 +130,7 @@ struct Turtle {
     glm::vec3 position;
     float width = 0.1f;
 
-    int joint_index = -1; // joint associated with current turtle position, used for forward ops
+    Branch *current_branch = nullptr; // current branch, used for forward commands
 
     Turtle();
 
@@ -127,26 +142,34 @@ struct Turtle {
     void roll(float rad);
     void pitch(float rad);
 
-    void forward(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
-    void skip(float distance, std::vector<Joint>& joints, std::vector<uint32_t>& indices);
+    void forward(float distance);
+    void skip(float distance);
 
     void level();
 
     Joint joint_transform() const noexcept {
         return {
-            Transform{
-                rotation,
-                position},
+            heading(),
+            position,
             width
         };
     }
 
-    void reset_line() {
-        joint_index = -1;
+    /**
+     * @brief split this turtle from parent branch by creating a new branch and adding it to previous as a child
+     * 
+     */
+    void branch() {
+        Branch b{};
+        b.parent = current_branch;
+
+        const int ind = current_branch->children.size();
+        current_branch->children.push_back(b);
+        current_branch = &(current_branch->children[ind]);
     }
 
-    // push edge by adding the last and current position to the skeleton
-    void push_edge(std::vector<Joint>& joints, std::vector<uint32_t>& indices);
+    // push edge by adding position to the branch
+    void push_vertex();
 };
 
 static const char* Library[] = {
@@ -179,13 +202,6 @@ struct TurtleCommands {
 };
 
 
-struct Branch {
-    std::vector<glm::vec3> vertices;
-    std::vector<Branch> children;
-    Branch *parent = nullptr;
-
-};
-
 class Tree {
 public:
     Branch root;
@@ -194,45 +210,79 @@ public:
     float get_parameter(const std::string& name) const {return parameters.at(name);}
 
     /**
-     * @brief converts a given symbol string to a 3d representation. Line primitives are places in index array
+     * @brief creates tree branch structure from symbol string
      * 
-     * @param ss 
+     * @param ss symbol string created from an l-system evaluation
      * @param joints 
      * @param indices 
      */
     template<typename T>
-    std::optional<Skeleton> from_symbol_string(const SymbolString<T>& ss) {
-        Skeleton sk;
+    bool from_symbol_string(const SymbolString<T>& ss) {
         std::stack<Turtle> turtle_stack;
         Turtle turtle{};
+        root = Branch{}; // reset tree
+        turtle.current_branch = &root;
 
         for (const auto& symbol : ss) {
             const uint32_t depth = turtle_stack.size();
             // operator determination, symbol to turtle command
-            eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack, sk);
+            eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack);
         }
-        if (turtle_stack.size() == 0)
-            return {sk};
-        return {};
+        return turtle_stack.size() == 0;
     }
 
-    Skeleton simple_skeleton(int len) {
-        Skeleton skeleton;
+    Skeleton to_skeleton() const {
+        Skeleton sk;
+        std::stack<const Branch*> branch_stack;
+        branch_stack.push(&root);
+
+        while(!branch_stack.empty()) {
+            const Branch *cur = branch_stack.top();
+            branch_stack.pop();
+            for (auto &c : cur->children) {
+                branch_stack.push(&c);
+            }
+            int last_joint = -1;
+            for (auto &j : cur->joints) {
+                if (last_joint != -1) {
+                    // start adding edges once there are at least two new vertices
+                    sk.indices.push_back(last_joint);
+                    sk.indices.push_back(sk.joints.size());
+                }
+                // index of this new joint
+                last_joint = sk.joints.size();
+                sk.joints.push_back(j);
+            }
+        }
+        return sk;
+    }
+
+    void simple_skeleton(int len) {
+        root = Branch{}; // reset tree
         Turtle turtle{};
+        turtle.current_branch = &root;
         turtle.width = 2.0f;
         for (int i = 0; i < len; i++) {
             // apply_tropism(turtle, GravityDir, 4.22f, 1.0f);
-            turtle.forward(0.5f, skeleton.joints, skeleton.indices);
-            turtle.yaw(0.2f);
+            turtle.forward(0.5f);
+            // turtle.yaw(0.18f);
         }
-        return skeleton;
+        Turtle turtle_a = turtle;
+        turtle.branch();
+        turtle.yaw(0.7f);
+        for (int i = 0; i < len; i++) {
+            // apply_tropism(turtle, GravityDir, 4.22f, 1.0f);
+            turtle.forward(0.5f);
+            // turtle.yaw(-0.09f);
+        }
+        turtle_a.forward(1.5f);
     }
 
 private:
     std::map<std::string, float> parameters;
 
     void apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l);
-    void eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack, Skeleton& sk);
+    void eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack);
 };
 
 
