@@ -36,6 +36,7 @@ constexpr glm::mat4 GLM_HERMITE_MAT = {{ 2.0f, -3.0f,  0.0f,  1.0f},
  */
 template<typename T>
 T bezier(float s, const T& p0, const T& c0, const T& c1, const T& p1) noexcept {
+    // from https://cglm.readthedocs.io/en/latest/bezier.html
     const glm::vec4 wv = glm::vec4{s*s*s, s*s, s, 1} * GLM_BEZIER_MAT; // {(1-s)^3, s(1-s)^2, s^2(1-s), s^3}
     return p0 * wv[0] + c0 * wv[1] + c1 * wv[2] + p1 * wv[3];
 }
@@ -92,6 +93,7 @@ struct HermiteSpline {
     std::vector<T> points;
 
     T eval(float t) const noexcept {
+        // based on https://blog.demofox.org/2015/08/08/cubic-hermite-interpolation/
         const float x = (points.size() - 1) * t;
         const int index = x;
         
