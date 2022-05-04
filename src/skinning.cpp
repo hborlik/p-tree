@@ -14,16 +14,44 @@ glm::vec3 nonParallelVectorInHoriz(const glm::vec3& v) {
     return {1, 0, 0};
 }
 
+/**
+ * @brief harden mesh normals, ccw front facing
+ * 
+ * @param vertices 
+ * @param indices 
+ */
+void harden_normals(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
+    for (int i = 0; i < indices.size(); i+=3) {
+        Vertex &A = vertices[indices[i+0]];
+        Vertex &B = vertices[indices[i+1]];
+        Vertex &C = vertices[indices[i+2]];
+        glm::vec3 X = C.pos - B.pos;
+        glm::vec3 Y = A.pos - B.pos;
 
-void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
+        glm::vec3 N = glm::normalize(glm::cross(X, Y));
+        A.normal = N;
+        B.normal = N;
+        C.normal = N;
+    }
+}
+
+
+void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool hard_normals)
 {
+    vertices.clear();
+    indices.clear();
+
     const std::vector<Joint> &skeleton_joints = skeleton.joints;
     const std::vector<uint32_t> &skeleton_indices = skeleton.indices;
 
+    // each vertex needs its own normal if the normals are hard
+    const int duplication_val = hard_normals ? 2 : 1;
+
     std::vector<glm::vec3> v_pos;
     glm::vec3 I = {0.5, 0, 0};
-    for(int i = 0; i < faces; i++) {
-        v_pos.push_back(glm::rotate(glm::mat4{1.0f}, (float)M_PI * 2.0f / faces * i, glm::vec3{0, 0, 1}) * glm::vec4(I, .0f));
+    for(int i = 0; i < faces * duplication_val; i++) {
+        float rad = (float)M_PI * 2.0f / faces * int(i / duplication_val); // radians to rotate
+        v_pos.push_back(glm::rotate(glm::mat4{1.0f}, rad, glm::vec3{0, 0, 1}) * glm::vec4(I, .0f));
     }
 
     const uint32_t NVerts = v_pos.size();
@@ -37,6 +65,7 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
         const glm::vec3 sk_vb_pos = glm::vec3(joint_b.position);
 
         const int VertFirstInd = vertices.size(); // initial vertex buffer size
+        const int IndexFirstInd = indices.size(); // initial index buffer
 
         const float a_scale = joint_a.width_scale;
         const float b_scale = joint_b.width_scale;
@@ -78,6 +107,7 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
         Vertex nv{};
         nv.color = glm::vec4(1.0, 1.0, 0.5, 1.0);
 
+        // push two circles of vertices to vertex buffer
         for (int v = 0; v < NVerts; ++v) {
             // vertex set a
             nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
@@ -89,7 +119,9 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             vertices.push_back(nv);
         }
 
+        // stitch vertices into triangles
         for (int f = 0; f < NVerts; ++f) {
+            // each quad has two triangles
             const int inds = 2 * f;
             indices.push_back(VertFirstInd + inds);
             indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
@@ -100,6 +132,9 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             indices.push_back(VertFirstInd + inds+1);
         }
     }
+
+    if (hard_normals)
+        harden_normals(vertices, indices);
 }
 
 } // namespace ptree

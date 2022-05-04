@@ -243,14 +243,14 @@ Skeleton CreateSkeleton(int iterations) {
     spline.points.push_back(Transform{glm::quatLookAt(-glm::normalize(glm::vec3{0, 0.8, 0.05}), {0, 1, 0}), {3, 5, 3}});
     ssk.sections.push_back(spline);
 
-    return ssk.toSkeleton(50);
+    // return ssk.toSkeleton(50);
 
-    // Tree tree{};
-    // if (tree.from_symbol_string(str)) {
-    //     // tree.simple_skeleton(5);
-    //     return tree.to_skeleton();
-    // }
-    // return {};
+    Tree tree{};
+    if (tree.from_symbol_string(str)) {
+        // tree.simple_skeleton(5);
+        return tree.to_skeleton();
+    }
+    return {};
 }
 
 Turtle::Turtle() : rotation{glm::quatLookAt(GravityDir, {1, 0, 0})}, position{} {
