@@ -44,13 +44,10 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
     const std::vector<Joint> &skeleton_joints = skeleton.joints;
     const std::vector<uint32_t> &skeleton_indices = skeleton.indices;
 
-    // each vertex needs its own normal if the normals are hard
-    const int duplication_val = hard_normals ? 2 : 1;
-
     std::vector<glm::vec3> v_pos;
     glm::vec3 I = {0.5, 0, 0};
-    for(int i = 0; i < faces * duplication_val; i++) {
-        float rad = (float)M_PI * 2.0f / faces * int(i / duplication_val); // radians to rotate
+    for(int i = 0; i < faces; i++) {
+        float rad = (float)M_PI * 2.0f / faces * i; // radians to rotate
         v_pos.push_back(glm::rotate(glm::mat4{1.0f}, rad, glm::vec3{0, 0, 1}) * glm::vec4(I, .0f));
     }
 
@@ -113,23 +110,45 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
             nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
             vertices.push_back(nv);
+            if (hard_normals) {
+                nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
+                nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
+                vertices.push_back(nv);
+            }
             // vertex set b
             nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
             nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
             vertices.push_back(nv);
+            if (hard_normals) {
+                nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
+                nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
+                vertices.push_back(nv);
+            }
         }
 
+        std::size_t n_pushed_verts = vertices.size() - VertFirstInd;
+
         // stitch vertices into triangles
-        for (int f = 0; f < NVerts; ++f) {
+        for (int f = 0; f < NVerts; f += 1) {
             // each quad has two triangles
             const int inds = 2 * f;
-            indices.push_back(VertFirstInd + inds);
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
+            if (hard_normals) {
+                indices.push_back(VertFirstInd + 2 * inds);
+                indices.push_back(VertFirstInd + (2 * (inds+2) + 1) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + 2 * (inds+1));
 
-            indices.push_back(VertFirstInd + (inds+2) % (NVerts * 2));
-            indices.push_back(VertFirstInd + (inds+3) % (NVerts * 2));
-            indices.push_back(VertFirstInd + inds+1);
+                indices.push_back(VertFirstInd + (2 * (inds+2) + 1) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + (2 * (inds+3) + 1) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + 2 * (inds+1));
+            } else {
+                indices.push_back(VertFirstInd + inds);
+                indices.push_back(VertFirstInd + (inds+2) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + inds+1);
+
+                indices.push_back(VertFirstInd + (inds+2) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + (inds+3) % (n_pushed_verts));
+                indices.push_back(VertFirstInd + inds+1);
+            }
         }
     }
 
