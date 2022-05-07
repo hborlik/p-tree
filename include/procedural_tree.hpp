@@ -83,7 +83,7 @@ struct Branch {
     }
 
     void add_joint(Joint joint) {
-        
+        joints.emplace_back(std::move(joint));
     }
 };
 
