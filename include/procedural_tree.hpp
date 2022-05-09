@@ -15,6 +15,10 @@
 
 namespace ptree {
 
+constexpr float degToRad(const float deg) noexcept {
+    return deg / 180.f * M_PI;
+};
+
 struct TreeSymbol {
     float l = 0,w = 0;
 

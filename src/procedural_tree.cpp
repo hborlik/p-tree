@@ -5,10 +5,6 @@
 
 namespace ptree {
 
-constexpr float degToRad(const float deg) noexcept {
-    return deg / 180.f * M_PI;
-};
-
 constexpr uint32_t S_A      = ptree::TurtleCommands::S_A;
 constexpr uint32_t S_B      = S_A + 1;
 constexpr uint32_t S_C      = S_B + 1;
