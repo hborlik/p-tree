@@ -290,12 +290,21 @@ void Turtle::level() {
     rotation = glm::mat3(l, u, h);
 }
 
+void Turtle::branch() {
+    Branch b{};
+    b.parent = current_branch;
+
+    const int ind = current_branch->children.size();
+    current_branch->children.push_back(b);
+    current_branch = &(current_branch->children[ind]);
+}
+
 void Turtle::push_vertex() {
     Joint joint = joint_transform();
     if (current_branch != nullptr) {        
         current_branch->joints.push_back(joint);
     }
-
+    depth++;
 }
 
 void Tree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {

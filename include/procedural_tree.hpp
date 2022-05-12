@@ -19,6 +19,10 @@ constexpr float degToRad(const float deg) noexcept {
     return deg / 180.f * M_PI;
 };
 
+constexpr float radToDeg(const float rad) noexcept {
+    return rad / M_PI * 180.f;
+};
+
 struct TreeSymbol {
     float l = 0,w = 0;
 
@@ -29,7 +33,7 @@ struct Vertex {
     glm::vec3 pos;
     glm::vec3 normal;
     glm::vec2 uv;
-    glm::vec4 color;
+    glm::vec3 color;
 };
 
 struct Transform {
@@ -68,8 +72,9 @@ struct Joint {
     glm::vec3 tangent;
     glm::vec3 position;
     float width_scale;
+    int depth;
 
-    Joint(const glm::vec3& tangent, const glm::vec3& position, float width_scale) : tangent{tangent}, position{position}, width_scale{width_scale} {}
+    Joint(const glm::vec3& tangent, const glm::vec3& position, float width_scale, int depth) : tangent{tangent}, position{position}, width_scale{width_scale}, depth{depth} {}
 };
 
 struct Branch {
@@ -115,7 +120,7 @@ struct SplineSkeleton {
                     interm_skel.indices.push_back(interm_skel.joints.size());
                 }
                 last_joint_ind = interm_skel.joints.size();
-                interm_skel.joints.emplace_back<Joint>({section.eval_dt(x).position, section.eval(x).position, 1.0f});
+                interm_skel.joints.emplace_back<Joint>({section.eval_dt(x).position, section.eval(x).position, 1.0f, i});
             }
         }
         return interm_skel;
@@ -133,6 +138,7 @@ struct Turtle {
     glm::quat rotation;
     glm::vec3 position;
     float width = 0.1f;
+    int depth = 0;
 
     Branch *current_branch = nullptr; // current branch, used for forward commands
 
@@ -155,7 +161,8 @@ struct Turtle {
         return {
             heading(),
             position,
-            width
+            width,
+            depth
         };
     }
 
@@ -163,14 +170,7 @@ struct Turtle {
      * @brief split this turtle from parent branch by creating a new branch and adding it to previous as a child
      * 
      */
-    void branch() {
-        Branch b{};
-        b.parent = current_branch;
-
-        const int ind = current_branch->children.size();
-        current_branch->children.push_back(b);
-        current_branch = &(current_branch->children[ind]);
-    }
+    void branch();
 
     // push edge by adding position to the branch
     void push_vertex();
@@ -209,6 +209,7 @@ struct TurtleCommands {
 class Tree {
 public:
     Branch root;
+    int max_joint_depth = 0;
 
     void set_parameter(const std::string& name, float value) {parameters[name] = value;}
     float get_parameter(const std::string& name) const {return parameters.at(name);}
@@ -226,11 +227,14 @@ public:
         Turtle turtle{};
         root = Branch{}; // reset tree
         turtle.current_branch = &root;
+        max_joint_depth = 0;
 
         for (const auto& symbol : ss) {
             const uint32_t depth = turtle_stack.size();
             // operator determination, symbol to turtle command
             eval_turtle_step(symbol.RepSym, symbol.value, depth, turtle, turtle_stack);
+            if (turtle.depth > max_joint_depth)
+                max_joint_depth = turtle.depth;
         }
         return turtle_stack.size() == 0;
     }

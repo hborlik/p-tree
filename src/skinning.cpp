@@ -36,7 +36,7 @@ void harden_normals(std::vector<Vertex>& vertices, std::vector<uint32_t>& indice
 }
 
 
-void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool hard_normals)
+void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool hard_normals, float thickness, Colorizer* colorizer)
 {
     vertices.clear();
     indices.clear();
@@ -64,8 +64,8 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
         const int VertFirstInd = vertices.size(); // initial vertex buffer size
         const int IndexFirstInd = indices.size(); // initial index buffer
 
-        const float a_scale = joint_a.width_scale;
-        const float b_scale = joint_b.width_scale;
+        const float a_scale = joint_a.width_scale * thickness;
+        const float b_scale = joint_b.width_scale * thickness;
 
         const glm::vec3 bone_tangent_a = glm::normalize(joint_a.tangent);
         const glm::vec3 bone_tangent_b = glm::normalize(joint_b.tangent);
@@ -113,6 +113,7 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             if (hard_normals) {
                 nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
                 nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
+                nv.color = colorizer ? colorizer->color_depth(joint_a.depth) : glm::vec3{};
                 vertices.push_back(nv);
             }
             // vertex set b
@@ -122,6 +123,7 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             if (hard_normals) {
                 nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
                 nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
+                nv.color = colorizer ? colorizer->color_depth(joint_b.depth) : glm::vec3{};
                 vertices.push_back(nv);
             }
         }
