@@ -109,21 +109,17 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
             // vertex set a
             nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
             nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
+            nv.color = colorizer ? colorizer->color_depth(joint_a.depth) : glm::vec3{};
             vertices.push_back(nv);
             if (hard_normals) {
-                nv.pos = transform_a * glm::vec4(v_pos[v], 1.0f);
-                nv.normal = glm::normalize(normal_transform_a * v_pos[v]);
-                nv.color = colorizer ? colorizer->color_depth(joint_a.depth) : glm::vec3{};
                 vertices.push_back(nv);
             }
             // vertex set b
             nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
             nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
+            nv.color = colorizer ? colorizer->color_depth(joint_b.depth) : glm::vec3{};
             vertices.push_back(nv);
             if (hard_normals) {
-                nv.pos = transform_b * glm::vec4(v_pos[v], 1.0f);
-                nv.normal = glm::normalize(normal_transform_b * v_pos[v]);
-                nv.color = colorizer ? colorizer->color_depth(joint_b.depth) : glm::vec3{};
                 vertices.push_back(nv);
             }
         }
