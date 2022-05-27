@@ -194,7 +194,7 @@ struct P_3 : public MonopodialProduction {
         const TreeSymbol& value = sym.center()->value;
         float L = value.l;
         float W = value.w;
-        SymbolString<TreeSymbol> ret{};
+        SymbolString<TreeSymbol> ret;
         if (matches(sym)) {
             // !(w) F(L) [ +(a_2) $ B(l * R_2, w * w_r) ] B(l * R_1, w * w_r)
             ret.push_back({TurtleCommands::SetWidth, {W}});

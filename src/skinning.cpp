@@ -43,6 +43,9 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
 
     const std::vector<Joint> &skeleton_joints = skeleton.joints;
     const std::vector<uint32_t> &skeleton_indices = skeleton.indices;
+    
+    vertices.reserve(skeleton_indices.size() * faces * 2 * (hard_normals ? 2 : 1));
+    indices.reserve(skeleton_indices.size() * 6);
 
     std::vector<glm::vec3> v_pos;
     glm::vec3 I = {0.5, 0, 0};

@@ -46,7 +46,7 @@ using SymbolString = std::vector<Symbol<T>>;
  */
 template<typename T>
 struct SymbolN {
-    Symbol<T>* neighborhood[3];
+    const Symbol<T>* neighborhood[3];
 
     const Symbol<T>* left() const noexcept {
         return neighborhood[0];
@@ -146,10 +146,11 @@ public:
      */
     SymbolString<T> evaluate(const SymbolString<T>& axiom) {
         SymbolString<T> B;
-        SymbolString<T> A = axiom;
+        const SymbolString<T>& A = axiom;
         std::vector<const Production<T>*> valid_rules{};
+        SymbolString<T> tr{};
         for (int i = 0; i < A.size(); ++i) {
-            SymbolN<T> n {
+            const SymbolN<T> n {
                 {i == 0 ? nullptr : &(A[i - 1]),
                 &(A[i]),
                 i < A.size() - 1 ? &(A[i + 1]) : nullptr}
@@ -179,7 +180,7 @@ public:
                         w -= rule->p;
                     }
                 }
-                auto tr = selected_rule->translate(n);
+                tr = selected_rule->translate(n);
                 B.insert(B.end(), tr.begin(), tr.end());
             } else { // no matching productions, symbol does not change
                 B.push_back(*n.neighborhood[1]);
