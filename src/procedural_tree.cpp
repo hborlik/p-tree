@@ -310,7 +310,7 @@ void Turtle::push_vertex() {
 void Tree::apply_tropism(Turtle& turtle, const glm::vec3& T, float F, float b_l) {
     const glm::vec3 hxt = glm::cross(turtle.heading(), T);
     const float alpha = F * hxt.length() * b_l * b_l / (2.0f * turtle.width);
-    turtle.rotation = glm::rotate(glm::quat{glm::mat4{1.0f}}, alpha, hxt) * turtle.rotation;
+    turtle.rotation = glm::rotate(glm::identity<glm::quat>(), alpha, hxt) * turtle.rotation;
 }
 
 void Tree::eval_turtle_step(uint32_t sym, float value, uint32_t depth, Turtle& turtle, std::stack<Turtle>& turtle_stack) {
