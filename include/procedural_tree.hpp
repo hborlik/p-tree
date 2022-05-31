@@ -85,12 +85,16 @@ struct Branch {
     std::vector<Branch> children;
     Branch *parent = nullptr;
 
+    bool is_terminal() const {
+        return children.empty();
+    }
+
     /**
      * @brief The last joint added to vertices
      * 
      * @return const Joint& 
      */
-    const Joint& current_joint() const {
+    const Joint& last_joint() const {
         return joints[joints.size() - 1];
     }
 
@@ -102,6 +106,7 @@ struct Branch {
 struct Skeleton {
     std::vector<Joint> joints;
     std::vector<uint32_t> indices;
+    int max_depth = 0;
 };
 
 /**
@@ -244,6 +249,7 @@ public:
 
     Skeleton to_skeleton() const {
         Skeleton sk;
+        sk.max_depth = max_joint_depth;
         std::stack<const Branch*> branch_stack;
         branch_stack.push(&root);
 

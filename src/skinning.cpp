@@ -67,8 +67,12 @@ void Skin_GO(int faces, const Skeleton& skeleton, std::vector<Vertex>& vertices,
         const int VertFirstInd = vertices.size(); // initial vertex buffer size
         const int IndexFirstInd = indices.size(); // initial index buffer
 
-        const float a_scale = joint_a.width_scale * thickness;
-        const float b_scale = joint_b.width_scale * thickness;
+        float a_scale = joint_a.width_scale * thickness;
+        float b_scale = joint_b.width_scale * thickness;
+
+        if (joint_b.depth == skeleton.max_depth) {
+            b_scale = 0.01;
+        }
 
         const glm::vec3 bone_tangent_a = glm::normalize(joint_a.tangent);
         const glm::vec3 bone_tangent_b = glm::normalize(joint_b.tangent);
