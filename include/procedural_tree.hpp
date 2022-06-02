@@ -90,7 +90,7 @@ struct Branch {
     }
 
     /**
-     * @brief The last joint added to vertices
+     * @brief The joint at the end of the branch
      * 
      * @return const Joint& 
      */
@@ -106,6 +106,7 @@ struct Branch {
 struct Skeleton {
     std::vector<Joint> joints;
     std::vector<uint32_t> indices;
+    std::vector<uint32_t> endpoints;
     int max_depth = 0;
 };
 
@@ -259,16 +260,20 @@ public:
             for (auto &c : cur->children) {
                 branch_stack.push(&c);
             }
-            int last_joint = -1;
-            for (auto &j : cur->joints) {
-                if (last_joint != -1) {
+            int prev_joint = -1;
+            for (const auto &j : cur->joints) {
+                if (prev_joint != -1) {
                     // start adding edges once there are at least two new vertices
-                    sk.indices.push_back(last_joint);
+                    sk.indices.push_back(prev_joint);
                     sk.indices.push_back(sk.joints.size());
                 }
                 // index of this new joint
-                last_joint = sk.joints.size();
+                prev_joint = sk.joints.size();
                 sk.joints.push_back(j);
+            }
+            // find terminal joints
+            if (sk.joints[sk.joints.size()-1].depth == max_joint_depth) {
+                sk.endpoints.push_back(sk.joints.size()-1);
             }
         }
         return sk;
