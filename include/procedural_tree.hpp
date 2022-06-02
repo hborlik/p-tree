@@ -272,9 +272,10 @@ public:
                 sk.joints.push_back(j);
             }
             // find terminal joints
-            if (sk.joints[sk.joints.size()-1].depth == max_joint_depth) {
-                sk.endpoints.push_back(sk.joints.size()-1);
-            }
+            if (sk.joints.size() > 0)
+                if (sk.joints[sk.joints.size()-1].depth == max_joint_depth) {
+                    sk.endpoints.push_back(sk.joints.size()-1);
+                }
         }
         return sk;
     }
