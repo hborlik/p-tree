@@ -273,7 +273,7 @@ public:
             }
             // find terminal joints
             if (sk.joints.size() > 0)
-                if (sk.joints[sk.joints.size()-1].depth == max_joint_depth) {
+                if (sk.joints[sk.joints.size()-1].depth == max_joint_depth && cur->is_terminal()) {
                     sk.endpoints.push_back(sk.joints.size()-1);
                 }
         }
